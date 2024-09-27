@@ -5,8 +5,9 @@
 
 # Import and initialize Django
 import os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 import django
-
+django.setup()
 
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -16,30 +17,32 @@ from myapp.routing import websocket_urlpatterns
 from myapp.middleware import TokenAuthMiddleware
 
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
-# django.setup()
+
+
+
 
 # application = ProtocolTypeRouter({
-
 #     "http": get_asgi_application(),
-#     "websocket":    
-#     # AllowedHostsOriginValidator(
-#         # AuthMiddlewareStack(
-            
-#             # TokenAuthMiddleware(
-#                 URLRouter(
-#                     websocket_urlpatterns
-#                 )
-#             # )
-#         # )
-        
-#     # ),
+#     "websocket": URLRouter(
+#         websocket_urlpatterns
+#     ),
 # })
 
 
+
 application = ProtocolTypeRouter({
+
     "http": get_asgi_application(),
-    "websocket": URLRouter(
-        websocket_urlpatterns
+    "websocket":    
+    # AllowedHostsOriginValidator(
+        AuthMiddlewareStack(
+            
+            TokenAuthMiddleware(
+                URLRouter(
+                    websocket_urlpatterns
+                )
+            )
+        # )
+        
     ),
 })
