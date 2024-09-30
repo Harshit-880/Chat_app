@@ -281,14 +281,68 @@ class ChatConsumer(WebsocketConsumer):
 
 class OnlineStatusConsumer(WebsocketConsumer):
     def connect(self):
-        # Retrieve the user from the scope, which is set by the middleware
-        user = self.scope.get('user', None)
-
-        # Check if the user is authenticated and not anonymous
-        if user and not user.is_anonymous:
-            self.accept()  # Accept the WebSocket connection
-            print(f"WebSocket connected: User - {user.username}")
+        self.user = self.scope["user"]
+        if self.user.is_anonymous:
+            self.close()
         else:
-            # Reject the connection if no authenticated user is found
-            print("WebSocket connection rejected: User is anonymous or not found.")
-            self.close()  # Close the WebSocket connection
+            self.room_group_name = "online_status_broadcast"
+            async_to_sync(self.channel_layer.group_add)(
+                self.room_group_name,
+                self.channel_name
+            )
+            self.accept()
+            self.broadcast_online_status()
+            print(f"{self.user.username} connected and added to {self.room_group_name}")
+    
+    def disconnect(self, close_code):
+        if hasattr(self, 'room_group_name'):
+            async_to_sync(self.channel_layer.group_discard)(
+                self.room_group_name,
+                self.channel_name
+            )
+        self.broadcast_online_status()
+
+    def receive(self, text_data):
+        pass
+
+    def broadcast_online_status(self):
+        print("Broadcasting online status...")
+        try:
+            # Collect online statuses of all users safely
+            online_status = {}
+            for user in User.objects.all():
+                try:
+                    # Try to access the onlinestatus object of the user
+                    status = user.onlinestatus
+                    online_status[user.username] = {
+                        'is_online': status.is_online,
+                        'last_seen': status.last_seen.isoformat()
+                    }
+                    print(f"Status found for user {user.username}: {online_status[user.username]}")
+                except OnlineStatus.DoesNotExist:
+                    # Handle the case where onlinestatus does not exist for the user
+                    print(f"No OnlineStatus found for user {user.username}. Skipping.")
+
+            # If there is any status to broadcast
+            if online_status:
+                async_to_sync(self.channel_layer.group_send)(
+                    "online_status_broadcast",
+                    {
+                        'type': 'online_status',
+                        'online_status': online_status
+                    }
+                )
+                print("Online status broadcast sent successfully.")
+            else:
+                print("No online statuses available to broadcast.")
+
+        except Exception as e:
+            print(f"Error during broadcasting online status: {e}")
+            #  that code not work because of i have a root user that do not exist in online status 
+
+    def online_status(self, event):
+        online_status = event['online_status']
+        self.send(text_data=json.dumps({
+            'type': 'online_status',
+            'online_status': online_status
+        }))
