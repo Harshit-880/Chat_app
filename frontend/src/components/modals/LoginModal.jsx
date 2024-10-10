@@ -1,12 +1,48 @@
 import React, { useState, useEffect } from "react";
 import { motion } from 'framer-motion';
+import { useWebSocket } from "../../contexts/WebSocketContent";
+import { toast } from 'react-toastify';
+import { useNavigate } from "react-router-dom";
+import axios from 'axios';
 
 const LoginModal = ({ isOpen, onClose }) => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    
-        
+    const { login } = useWebSocket();
+    const navigate = useNavigate();
 
+    useEffect(() => {
+        const checkLoginStatus = async() => {
+            try {
+                const response = await axios.get("http://localhost:8000/api/auth/check/", {
+                    headers: {
+                        Authorization: `Token ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.data.logged_in) {
+                    navigate("/chat");
+                }
+            } catch (error) {
+                console.log("User not logged in");
+            }
+        };
+
+        if (localStorage.getItem('token')) {
+            checkLoginStatus();
+        }
+    }, [navigate]);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        try {
+            await login(username, password);
+            toast.success("Login successful!");
+            navigate("/chat");
+            onClose();
+        } catch (error) {
+            toast.error("Login failed. Please check your credentials.");
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -18,7 +54,7 @@ const LoginModal = ({ isOpen, onClose }) => {
             exit={{ opacity: 0, y: 50 }}
         >
             <h2 className="text-2xl font-bold mb-4 text-black dark:text-white">Login</h2>
-            <form  className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-black dark:text-text-light mb-2">Username</label>
                     <input

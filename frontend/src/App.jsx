@@ -2,6 +2,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
+import Chat from "./pages/Chat";
 import { useTheme } from './contexts/ThemeContext';
 import Header from "./components/Header";
 
@@ -16,6 +17,7 @@ function App() {
         <main className="flex-1 ">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/chat" element={<Chat />} />
           </Routes>
         </main>
       </div>
